@@ -123,9 +123,9 @@ body { background: #1A1A1A; color: #FAFAFA; font-family: system-ui, sans-serif; 
       </div>
     </div>
 
-    <!-- Step 4: Google Home -->
+    <!-- Step 4: Chromecast -->
     <div class="step" data-step="4">
-      <h2 class="text-xl font-semibold mb-4">Google Home Device</h2>
+      <h2 class="text-xl font-semibold mb-4">Chromecast Device</h2>
       <p class="text-gray-400 mb-4">Find Cast-enabled devices on your network.</p>
       <button type="button" onclick="scanCast()" class="w-full bg-gray-700 text-white py-3 rounded-lg font-semibold hover:bg-gray-600 transition mb-4" id="scanCastBtn">
         <span id="scanCastText">Scan for Cast devices</span>
@@ -133,7 +133,7 @@ body { background: #1A1A1A; color: #FAFAFA; font-family: system-ui, sans-serif; 
       </button>
       <div id="castResults" class="hidden mb-4"></div>
       <div id="castWarning" class="hidden p-4 bg-yellow-900/50 text-yellow-300 rounded-lg text-sm mb-4">
-        Make sure your Pi and Google Home are on the same Wi-Fi network.
+        Make sure your Pi and Chromecast/Google Home are on the same Wi-Fi network.
         <button type="button" onclick="scanCast()" class="underline ml-2">Retry</button>
       </div>
       <div class="flex gap-3">

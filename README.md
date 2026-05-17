@@ -1,7 +1,7 @@
 # Inky pHAT Dashboard
 
 E-ink dashboard for Raspberry Pi Zero 2W with an Inky pHAT (red, 212×104).
-Shows weather, live bus departures (STPT Timișoara), current time, and Google Home now-playing info.
+Shows weather, live bus departures (STPT Timișoara), current time, and now-playing info from any Chromecast device.
 
 ## Hardware
 
@@ -58,7 +58,7 @@ Open `http://<pi-hostname>.local:8080` and follow the setup wizard:
 1. **Password** — protect the web UI
 2. **Your details** — name, timezone, location (for weather)
 3. **Bus station** — search STPT stops (Timișoara, Romania)
-4. **Google Home** — optional, for now-playing display
+4. **Chromecast** — optional, for now-playing display
 5. **Preview & finish** — preview the display, then finish
 
 After setup, the display starts showing live data automatically.
@@ -68,14 +68,14 @@ After setup, the display starts showing live data automatically.
 - **Top line**: Greeting + temperature + weather symbol (ASCII: `O` clear, `~` cloudy, `=` fog, `;` rain, `*` snow, `!` storm)
 - **Clock**: Current time in `HH:MM`
 - **Bus departures**: Live STPT API data (red), supplemented with tomorrow's schedule (`+1` times) when live data is sparse
-- **Now playing**: Google Home media info (when playing)
+- **Now playing**: Chromecast media info (when playing)
 
 ## Data sources
 
 - **Weather**: [Open-Meteo](https://open-meteo.com/) (free, no API key)
 - **Live bus**: STPT proxy at `live.stpt.ro`
 - **Schedule fallback**: scraper for `smtt.ro` (Timișoara public transit)
-- **Now playing**: local network mDNS discovery + pychromecast
+- **Now playing**: local network mDNS discovery + pychromecast (works with any Chromecast, Google Home, or Cast-compatible device)
 
 ## Security
 
