@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Login</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: { red: '#DC2626', black: '#1A1A1A', white: '#FAFAFA' }
+      }
+    }
+  }
+}
+</script>
+<style>
+body { background: #1A1A1A; color: #FAFAFA; font-family: system-ui, sans-serif; }
+</style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+<div class="w-full max-w-sm bg-[#2A2A2A] rounded-2xl p-8 shadow-2xl">
+  <div class="text-center mb-6">
+    <h1 class="text-3xl font-bold text-brand-red">Dashboard</h1>
+    <p class="text-gray-400 mt-1">Enter your password to continue</p>
+  </div>
+  <form id="loginForm" onsubmit="return doLogin(event)">
+    <div class="mb-4">
+      <label class="block text-sm font-medium mb-1">Password</label>
+      <input type="password" id="password" class="w-full p-3 rounded-lg bg-[#1A1A1A] border border-gray-700 text-white focus:border-brand-red focus:outline-none" required autofocus>
+    </div>
+    <div id="error" class="text-red-500 text-sm mb-4 hidden"></div>
+    <button type="submit" class="w-full bg-brand-red text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition">Log in</button>
+  </form>
+</div>
+<script>
+async function doLogin(e) {
+  e.preventDefault();
+  const err = document.getElementById('error');
+  err.classList.add('hidden');
+  const res = await fetch('/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({password: document.getElementById('password').value})
+  });
+  if (res.ok) { window.location.href = '/settings'; return; }
+  const data = await res.json();
+  err.textContent = data.error || 'Invalid password';
+  err.classList.remove('hidden');
+}
+</script>
+</body>
+</html>

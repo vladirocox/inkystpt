@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Settings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: { red: '#DC2626', black: '#1A1A1A', white: '#FAFAFA' }
+      }
+    }
+  }
+}
+</script>
+<style>
+body { background: #1A1A1A; color: #FAFAFA; font-family: system-ui, sans-serif; }
+.section { background: #2A2A2A; border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+.section h3 { color: #DC2626; font-weight: 600; font-size: 1.125rem; margin-bottom: 16px; }
+input, select { background: #1A1A1A; border: 1px solid #444; border-radius: 8px; padding: 10px 14px; color: #FAFAFA; width: 100%; }
+input:focus, select:focus { border-color: #DC2626; outline: none; }
+.btn-red { background: #DC2626; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; }
+.btn-red:hover { background: #B91C1C; }
+.btn-gray { background: #444; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; }
+.btn-gray:hover { background: #555; }
+.btn-green { background: #22C55E; color: white; padding: 10px 20px; border-radius: 8px; font-weight: 600; }
+.btn-green:hover { background: #16A34A; }
+.spinner { border: 3px solid #444; border-top: 3px solid #DC2626; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 4px; color: #aaa; }
+.toggle { position: relative; display: inline-block; width: 48px; height: 26px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #444; border-radius: 26px; transition: 0.3s; }
+.slider:before { position: absolute; content: ''; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+.toggle input:checked + .slider { background: #DC2626; }
+.toggle input:checked + .slider:before { transform: translateX(22px); }
+.bus-dropdown { max-height: 240px; overflow-y: auto; }
+.device-row { display: flex; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid #333; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.modal-content { background: #2A2A2A; border-radius: 16px; padding: 24px; max-width: 400px; width: 90%; }
+</style>
+</head>
+<body class="min-h-screen p-4 max-w-2xl mx-auto">
+<div class="flex justify-between items-center mb-6">
+  <h1 class="text-2xl font-bold text-brand-red">Settings</h1>
+  <div class="flex gap-2">
+    <button onclick="renderPreview()" class="btn-gray text-sm">Preview</button>
+    <a href="/logout" class="btn-gray text-sm no-underline inline-block">Logout</a>
+  </div>
+</div>
+
+<div id="previewModal" class="modal hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal-content text-center">
+    <h3 class="text-lg font-semibold mb-4">Display Preview</h3>
+    <div id="previewContent"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<div id="rebootModal" class="modal hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal-content text-center">
+    <h3 class="text-lg font-semibold mb-4">Reboot Pi?</h3>
+    <p class="text-gray-400 mb-6">Are you sure you want to reboot the Raspberry Pi?</p>
+    <div class="flex gap-3">
+      <button onclick="document.getElementById('rebootModal').classList.add('hidden')" class="btn-gray flex-1">Cancel</button>
+      <button onclick="doReboot()" class="btn-red flex-1">Reboot</button>
+    </div>
+  </div>
+</div>
+
+<form id="settingsForm">
+  <!-- General -->
+  <div class="section">
+    <h3>General</h3>
+    <div class="grid gap-4">
+      <div>
+        <label>Your Name</label>
+        <input type="text" id="s_name" class="w-full">
+      </div>
+      <div>
+        <label>Timezone</label>
+        <select id="s_timezone" class="w-full">
+          <option value="Europe/Bucharest">Europe/Bucharest (UTC+2)</option>
+          <option value="Europe/London">Europe/London (UTC+0)</option>
+          <option value="Europe/Berlin">Europe/Berlin (UTC+1)</option>
+          <option value="Europe/Paris">Europe/Paris (UTC+1)</option>
+          <option value="America/New_York">America/New_York (UTC-5)</option>
+          <option value="America/Chicago">America/Chicago (UTC-6)</option>
+          <option value="America/Los_Angeles">America/Los_Angeles (UTC-8)</option>
+          <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
+        </select>
+      </div>
+      <div>
+        <label>Location</label>
+        <div class="flex gap-2">
+          <input type="text" id="s_city" class="flex-1" placeholder="City">
+          <button type="button" onclick="reGeocode()" class="btn-gray text-sm">Re-geocode</button>
+        </div>
+        <input type="hidden" id="s_lat">
+        <input type="hidden" id="s_lon">
+        <p id="s_location_display" class="text-green-400 text-xs mt-1 hidden"></p>
+      </div>
+      <div>
+        <label>Display Refresh Interval</label>
+        <select id="s_refresh_interval" class="w-full">
+          <option value="15">15 seconds</option>
+          <option value="30">30 seconds</option>
+          <option value="60">1 minute</option>
+          <option value="120">2 minutes</option>
+          <option value="300">5 minutes</option>
+          <option value="600">10 minutes</option>
+          <option value="900">15 minutes</option>
+          <option value="1800">30 minutes</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bus -->
+  <div class="section">
+    <h3>Bus</h3>
+    <div class="mb-3">
+      <p class="text-sm text-gray-400" id="s_current_stop">No stop configured</p>
+      <div id="s_bus_preview" class="mt-2 text-sm hidden"></div>
+    </div>
+    <div class="mb-3">
+      <label>Search & change stop</label>
+      <input type="text" id="s_bus_search" class="w-full" placeholder="Type stop name...">
+      <div id="s_bus_results" class="mt-1 bg-[#1A1A1A] border border-gray-700 rounded-lg hidden bus-dropdown"></div>
+    </div>
+    <input type="hidden" id="s_stop_id">
+    <input type="hidden" id="s_stop_name">
+    <div class="grid grid-cols-2 gap-3 mt-3">
+      <div>
+        <label>Departures to show</label>
+        <select id="s_num_departures">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </div>
+      <div>
+        <label>Time format</label>
+        <select id="s_show_arrival_time">
+          <option value="true">Arrival time (14:32)</option>
+          <option value="false">Relative (in 4 min)</option>
+        </select>
+      </div>
+    </div>
+    <details class="mt-4 border-t border-gray-700 pt-4 group">
+      <summary class="text-sm font-medium text-gray-400 cursor-pointer hover:text-gray-200 list-none flex items-center gap-2">
+        <span class="transition-transform duration-200 group-open:rotate-90">&#9654;</span>
+        Manual schedule (fallback &mdash; auto-fetched from smtt.ro)
+      </summary>
+      <p class="text-xs text-gray-500 mt-2 mb-2">Schedules are now auto-fetched from smtt.ro. Entries here are only used if the scraper fails.</p>
+      <div id="s_schedule_entries" class="space-y-2"></div>
+      <button type="button" onclick="addScheduleEntry()" class="btn-gray text-sm mt-2">+ Add line</button>
+    </details>
+  </div>
+
+  <!-- Google Home -->
+  <div class="section">
+    <h3>Google Home</h3>
+    <p class="text-sm text-gray-400 mb-3" id="s_current_cast">No device paired</p>
+    <div class="flex gap-2 mb-3">
+      <button type="button" onclick="scanCastSettings()" class="btn-gray text-sm" id="s_scan_cast_btn">
+        <span id="s_scan_cast_text">Re-scan</span>
+        <span id="s_scan_cast_spinner" class="hidden"><span class="spinner ml-1"></span></span>
+      </button>
+    </div>
+    <div id="s_cast_results" class="hidden mb-3"></div>
+    <label class="flex items-center gap-3">
+      <span class="text-sm">Show now playing</span>
+      <label class="toggle">
+        <input type="checkbox" id="s_show_now_playing">
+        <span class="slider"></span>
+      </label>
+    </label>
+  </div>
+
+  <!-- System -->
+  <div class="section">
+    <h3>System</h3>
+    <div id="s_system_info" class="text-sm text-gray-400 mb-4 grid grid-cols-3 gap-4 text-center"></div>
+    <div class="flex flex-wrap gap-2">
+      <button type="button" onclick="refreshDisplay()" class="btn-gray text-sm">Refresh display</button>
+      <button type="button" onclick="restartDashboard()" class="btn-gray text-sm">Restart dashboard</button>
+      <button type="button" onclick="document.getElementById('rebootModal').classList.remove('hidden')" class="btn-red text-sm">Reboot Pi</button>
+      <button type="button" onclick="toggleChangePassword()" class="btn-gray text-sm">Change password</button>
+    </div>
+    <div id="s_change_password" class="hidden mt-4">
+      <div class="mb-3">
+        <label>Current password</label>
+        <input type="password" id="s_current_pw" class="w-full">
+      </div>
+      <div class="mb-3">
+        <label>New password</label>
+        <input type="password" id="s_new_pw" class="w-full">
+      </div>
+      <div class="mb-3">
+        <label>Confirm new password</label>
+        <input type="password" id="s_confirm_pw" class="w-full">
+      </div>
+      <div id="s_pw_error" class="text-red-500 text-sm mb-2 hidden"></div>
+      <button type="button" onclick="changePassword()" class="btn-red text-sm">Save password</button>
+    </div>
+  </div>
+
+  <button type="button" onclick="saveAllSettings()" class="btn-green w-full mt-4 text-lg">Save All Settings</button>
+  <div id="s_save_status" class="text-center text-sm mt-2 hidden"></div>
+</form>
+
+<script>
+let config = {};
+
+async function loadConfig() {
+  const res = await fetch('/api/config');
+  config = await res.json();
+  applyConfig();
+}
+
+function applyConfig() {
+  document.getElementById('s_name').value = config.name || '';
+  document.getElementById('s_timezone').value = config.timezone || 'Europe/Bucharest';
+  document.getElementById('s_city').value = config.location?.city || '';
+  document.getElementById('s_lat').value = config.location?.lat || '';
+  document.getElementById('s_lon').value = config.location?.lon || '';
+  document.getElementById('s_refresh_interval').value = config.display?.refresh_interval || 30;
+  document.getElementById('s_num_departures').value = config.bus?.num_departures || 2;
+  document.getElementById('s_show_arrival_time').value = config.bus?.show_arrival_time ? 'true' : 'false';
+  document.getElementById('s_show_now_playing').checked = config.google_home?.show_now_playing ?? true;
+
+  if (config.bus?.stop_name) {
+    document.getElementById('s_current_stop').textContent = 'Current stop: ' + config.bus.stop_name;
+    loadBusPreview(config.bus.stop_id);
+  }
+  if (config.google_home?.device_name) {
+    document.getElementById('s_current_cast').textContent = 'Paired: ' + config.google_home.device_name;
+  }
+  loadSchedule();
+  loadSystemInfo();
+}
+
+async function loadSystemInfo() {
+  try {
+    const res = await fetch('/api/system/info');
+    const info = await res.json();
+    const container = document.getElementById('s_system_info');
+    const uptime = info.uptime ? Math.floor(info.uptime / 3600) + 'h ' + Math.floor((info.uptime % 3600) / 60) + 'm' : 'N/A';
+    container.innerHTML = `
+      <div><div class="text-white font-semibold">${info.cpu_temp || 'N/A'}°C</div><div>CPU Temp</div></div>
+      <div><div class="text-white font-semibold">${info.memory_usage || 'N/A'}%</div><div>Memory</div></div>
+      <div><div class="text-white font-semibold">${uptime}</div><div>Uptime</div></div>
+    `;
+  } catch(e) {}
+}
+
+async function loadBusPreview(stopId) {
+  if (!stopId) return;
+  const res = await fetch('/api/bus/preview?stop_id=' + stopId);
+  const data = await res.json();
+  const container = document.getElementById('s_bus_preview');
+  container.classList.remove('hidden');
+  container.innerHTML = '';
+  if (!data.arrivals || !data.arrivals.length) {
+    container.innerHTML = '<p class="text-gray-500">No live data</p>';
+    return;
+  }
+  data.arrivals.slice(0, 3).forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'flex justify-between py-1';
+    const time = a.arrival_time || '';
+    const min = a.minutes;
+    const suffix = min === 0 ? 'now' : min + ' min';
+    div.innerHTML = '<span><span class="text-brand-red font-bold">' + a.line + '</span> ' + a.destination + '</span><span>' + time + ' (' + suffix + ')</span>';
+    container.appendChild(div);
+  });
+}
+
+// Bus search
+let busSearchTimer;
+document.getElementById('s_bus_search').addEventListener('input', function() {
+  clearTimeout(busSearchTimer);
+  const q = this.value.trim();
+  if (q.length < 2) { document.getElementById('s_bus_results').classList.add('hidden'); return; }
+  busSearchTimer = setTimeout(async () => {
+    const res = await fetch('/api/bus/search?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    const container = document.getElementById('s_bus_results');
+    container.innerHTML = '';
+    if (!data.stations?.length) { container.classList.add('hidden'); return; }
+    data.stations.forEach(s => {
+      const div = document.createElement('div');
+      div.className = 'p-3 hover:bg-gray-800 cursor-pointer border-b border-gray-700';
+      div.innerHTML = '<span class="font-medium">' + s.name + '</span><span class="text-gray-500 text-sm ml-2">' + s.stop_id + '</span>';
+      div.onclick = () => {
+        document.getElementById('s_bus_search').value = s.name;
+        document.getElementById('s_stop_id').value = s.stop_id;
+        document.getElementById('s_stop_name').value = s.name;
+        document.getElementById('s_bus_results').classList.add('hidden');
+        document.getElementById('s_current_stop').textContent = 'Current stop: ' + s.name;
+        loadBusPreview(s.stop_id);
+      };
+      container.appendChild(div);
+    });
+    container.classList.remove('hidden');
+  }, 300);
+});
+
+// Schedule management
+let scheduleIdx = 0;
+
+function loadSchedule() {
+  const container = document.getElementById('s_schedule_entries');
+  container.innerHTML = '';
+  const entries = config.bus?.schedule || [];
+  entries.forEach(e => addScheduleEntryRow(e.line, e.destination, (e.times || []).join('\n')));
+}
+
+function addScheduleEntry() {
+  addScheduleEntryRow('', '', '');
+}
+
+function addScheduleEntryRow(line, dest, timesText) {
+  const container = document.getElementById('s_schedule_entries');
+  const idx = scheduleIdx++;
+  const div = document.createElement('div');
+  div.id = 'schedule_row_' + idx;
+  div.className = 'p-3 bg-[#1A1A1A] rounded-lg';
+  div.innerHTML = `
+    <div class="flex gap-2 mb-2">
+      <input type="text" class="flex-1 sched-line" placeholder="Line (e.g. M22)" value="${escHtml(line)}">
+      <input type="text" class="flex-1 sched-dest" placeholder="Destination" value="${escHtml(dest)}">
+      <button type="button" onclick="removeScheduleEntry(${idx})" class="text-red-500 text-sm font-bold px-2">✕</button>
+    </div>
+    <textarea class="w-full h-16 sched-times" placeholder="One time per line, HH:MM format">${escHtml(timesText)}</textarea>
+  `;
+  container.appendChild(div);
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function removeScheduleEntry(idx) {
+  const el = document.getElementById('schedule_row_' + idx);
+  if (el) el.remove();
+}
+
+function collectSchedule() {
+  const entries = [];
+  const container = document.getElementById('s_schedule_entries');
+  container.querySelectorAll('[id^="schedule_row_"]').forEach(row => {
+    const line = row.querySelector('.sched-line').value.trim();
+    const dest = row.querySelector('.sched-dest').value.trim();
+    const timesText = row.querySelector('.sched-times').value.trim();
+    if (!line) return;
+    const times = timesText.split('\n').map(t => t.trim()).filter(t => /^\d{1,2}:\d{2}$/.test(t));
+    if (!times.length) return;
+    entries.push({line, destination: dest, times});
+  });
+  return entries;
+}
+
+// Cast scan
+async function scanCastSettings() {
+  document.getElementById('s_scan_cast_text').classList.add('hidden');
+  document.getElementById('s_scan_cast_spinner').classList.remove('hidden');
+  const res = await fetch('/api/cast/scan');
+  const data = await res.json();
+  document.getElementById('s_scan_cast_text').classList.remove('hidden');
+  document.getElementById('s_scan_cast_spinner').classList.add('hidden');
+  const container = document.getElementById('s_cast_results');
+  container.classList.remove('hidden');
+  container.innerHTML = '';
+  if (!data.devices?.length) {
+    container.innerHTML = '<p class="text-yellow-300 text-sm">No devices found. Make sure they are on the same network.</p>';
+    return;
+  }
+  data.devices.forEach(d => {
+    const label = document.createElement('label');
+    label.className = 'flex items-center gap-3 p-2 hover:bg-gray-800 rounded-lg cursor-pointer';
+    label.innerHTML = '<input type="radio" name="s_cast" value="' + d.name + '" class="accent-brand-red"> <span>' + d.name + '</span>';
+    container.appendChild(label);
+  });
+}
+
+// Refresh display
+async function refreshDisplay() {
+  await fetch('/api/display/refresh', {method: 'POST'});
+}
+
+// Re-geocode
+async function reGeocode() {
+  const lat = document.getElementById('s_lat').value;
+  const lon = document.getElementById('s_lon').value;
+  if (!lat || !lon) return;
+  const res = await fetch(`/api/geocode/reverse?lat=${lat}&lon=${lon}`);
+  const data = await res.json();
+  if (data.city) {
+    document.getElementById('s_city').value = data.city;
+  }
+}
+
+// Preview
+async function renderPreview() {
+  document.getElementById('previewModal').classList.remove('hidden');
+  document.getElementById('previewContent').innerHTML = '<div class="spinner mx-auto my-4"></div>';
+  const payload = {
+    name: document.getElementById('s_name').value,
+    timezone: document.getElementById('s_timezone').value,
+    location: {
+      lat: parseFloat(document.getElementById('s_lat').value) || 45.75,
+      lon: parseFloat(document.getElementById('s_lon').value) || 21.21,
+      city: document.getElementById('s_city').value,
+    },
+    display: {refresh_interval: parseInt(document.getElementById('s_refresh_interval').value) || 30},
+    bus: {
+      stop_id: document.getElementById('s_stop_id').value || config.bus?.stop_id,
+      stop_name: document.getElementById('s_stop_name').value || config.bus?.stop_name,
+      num_departures: parseInt(document.getElementById('s_num_departures').value) || 2,
+      show_arrival_time: document.getElementById('s_show_arrival_time').value === 'true',
+      schedule: collectSchedule(),
+    },
+    google_home: {
+      show_now_playing: document.getElementById('s_show_now_playing').checked,
+      device_name: config.google_home?.device_name || '',
+    },
+  };
+  const res = await fetch('/api/mock-render', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (data.png_base64) {
+    document.getElementById('previewContent').innerHTML = '<img src="data:image/png;base64,' + data.png_base64 + '" class="max-w-full rounded-lg">';
+  } else {
+    document.getElementById('previewContent').innerHTML = '<p class="text-red-500">Preview unavailable</p>';
+  }
+}
+
+// Save all
+async function saveAllSettings() {
+  const status = document.getElementById('s_save_status');
+  status.classList.remove('hidden');
+  status.textContent = 'Saving...';
+  status.className = 'text-center text-sm mt-2 text-gray-400';
+
+  const busUpdates = {
+    num_departures: parseInt(document.getElementById('s_num_departures').value),
+    schedule: collectSchedule(),
+  };
+  if (document.getElementById('s_stop_id').value) {
+    busUpdates.stop_id = document.getElementById('s_stop_id').value;
+    busUpdates.stop_name = document.getElementById('s_stop_name').value;
+  }
+
+  const castSelected = document.querySelector('input[name="s_cast"]:checked');
+  const ghUpdates = {
+    show_now_playing: document.getElementById('s_show_now_playing').checked,
+  };
+  if (castSelected) ghUpdates.device_name = castSelected.value;
+
+  const payload = {
+    name: document.getElementById('s_name').value,
+    timezone: document.getElementById('s_timezone').value,
+    location: {
+      lat: parseFloat(document.getElementById('s_lat').value) || config.location?.lat || 45.7489,
+      lon: parseFloat(document.getElementById('s_lon').value) || config.location?.lon || 21.2087,
+      city: document.getElementById('s_city').value || config.location?.city || '',
+    },
+    display: {refresh_interval: parseInt(document.getElementById('s_refresh_interval').value)},
+    bus: busUpdates,
+    google_home: ghUpdates,
+  };
+
+  const res = await fetch('/api/config', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+
+  if (res.ok) {
+    status.textContent = 'Saved!';
+    status.className = 'text-center text-sm mt-2 text-green-400';
+    setTimeout(() => status.classList.add('hidden'), 3000);
+    refreshDisplay();
+  } else {
+    status.textContent = 'Save failed';
+    status.className = 'text-center text-sm mt-2 text-red-400';
+  }
+}
+
+// System actions
+async function restartDashboard() {
+  await fetch('/api/system/restart-dashboard', {method: 'POST'});
+}
+
+async function doReboot() {
+  document.getElementById('rebootModal').classList.add('hidden');
+  await fetch('/api/system/reboot', {method: 'POST'});
+}
+
+function toggleChangePassword() {
+  const el = document.getElementById('s_change_password');
+  el.classList.toggle('hidden');
+}
+
+async function changePassword() {
+  const err = document.getElementById('s_pw_error');
+  err.classList.add('hidden');
+  const current = document.getElementById('s_current_pw').value;
+  const newPass = document.getElementById('s_new_pw').value;
+  const confirm = document.getElementById('s_confirm_pw').value;
+  if (newPass.length < 8) { err.textContent = 'Min 8 characters'; err.classList.remove('hidden'); return; }
+  if (newPass !== confirm) { err.textContent = 'Passwords do not match'; err.classList.remove('hidden'); return; }
+  const res = await fetch('/api/system/change-password', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({current_password: current, new_password: newPass, confirm_password: confirm})
+  });
+  if (res.ok) {
+    document.getElementById('s_change_password').classList.add('hidden');
+    document.getElementById('s_current_pw').value = '';
+    document.getElementById('s_new_pw').value = '';
+    document.getElementById('s_confirm_pw').value = '';
+  } else {
+    const data = await res.json();
+    err.textContent = data.error || 'Failed';
+    err.classList.remove('hidden');
+  }
+}
+
+loadConfig();
+setInterval(loadSystemInfo, 30000);
+</script>
+</body>
+</html>

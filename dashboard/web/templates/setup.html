@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Setup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: { red: '#DC2626', black: '#1A1A1A', white: '#FAFAFA' }
+      }
+    }
+  }
+}
+</script>
+<style>
+body { background: #1A1A1A; color: #FAFAFA; font-family: system-ui, sans-serif; }
+.step { display: none; }
+.step.active { display: block; }
+.step-indicator { display: flex; gap: 8px; justify-content: center; margin-bottom: 24px; }
+.step-dot { width: 12px; height: 12px; border-radius: 50%; background: #444; transition: all 0.3s; }
+.step-dot.active { background: #DC2626; transform: scale(1.3); }
+.step-dot.done { background: #22C55E; }
+.strength-bar { height: 4px; border-radius: 2px; transition: all 0.3s; }
+.bus-dropdown { max-height: 240px; overflow-y: auto; }
+.device-row { display: flex; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid #333; }
+.spinner { border: 3px solid #444; border-top: 3px solid #DC2626; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+<div class="w-full max-w-2xl bg-[#2A2A2A] rounded-2xl p-8 shadow-2xl">
+  <div class="text-center mb-6">
+    <h1 class="text-3xl font-bold text-brand-red">Dashboard Setup</h1>
+    <p class="text-gray-400 mt-1">Configure your Pi dashboard in a few steps</p>
+  </div>
+
+  <div class="step-indicator" id="stepDots"></div>
+
+  <form id="setupForm">
+    <!-- Step 1: Password -->
+    <div class="step active" data-step="1">
+      <h2 class="text-xl font-semibold mb-4">Create a Password</h2>
+      <p class="text-gray-400 mb-4">This protects your entire dashboard web UI.</p>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Password</label>
+        <input type="password" id="password" class="w-full p-3 rounded-lg bg-[#1A1A1A] border border-gray-700 text-white focus:border-brand-red focus:outline-none" minlength="8" required>
+        <div class="strength-bar mt-2" id="strengthBar" style="width:0%"></div>
+        <p class="text-xs text-gray-500 mt-1" id="strengthText"></p>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Confirm Password</label>
+        <input type="password" id="confirmPassword" class="w-full p-3 rounded-lg bg-[#1A1A1A] border border-gray-700 text-white focus:border-brand-red focus:outline-none" required>
+      </div>
+      <div id="passwordError" class="text-red-500 text-sm mb-4 hidden"></div>
+      <button type="button" onclick="nextStep(1)" class="w-full bg-brand-red text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition">Continue</button>
+    </div>
+
+    <!-- Step 2: Your Details -->
+    <div class="step" data-step="2">
+      <h2 class="text-xl font-semibold mb-4">Your Details</h2>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Your Name</label>
+        <input type="text" id="name" class="w-full p-3 rounded-lg bg-[#1A1A1A] border border-gray-700 text-white focus:border-brand-red focus:outline-none" placeholder="e.g. Vlad">
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Timezone</label>
+        <select id="timezone" class="w-full p-3 rounded-lg bg-[#1A1A1A] border border-gray-700 text-white focus:border-brand-red focus:outline-none">
+          <option value="Europe/Bucharest">Europe/Bucharest (UTC+2)</option>
+          <option value="Europe/London">Europe/London (UTC+0)</option>
+          <option value="Europe/Berlin">Europe/Berlin (UTC+1)</option>
+          <option value="Europe/Paris">Europe/Paris (UTC+1)</option>
+          <option value="Europe/Helsinki">Europe/Helsinki (UTC+2)</option>
+          <option value="Europe/Moscow">Europe/Moscow (UTC+3)</option>
+          <option value="America/New_York">America/New_York (UTC-5)</option>
+          <option value="America/Chicago">America/Chicago (UTC-6)</option>
+          <option value="America/Denver">America/Denver (UTC-7)</option>
+          <option value="America/Los_Angeles">America/Los_Angeles (UTC-8)</option>
+          <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
+          <option value="Asia/Shanghai">Asia/Shanghai (UTC+8)</option>
+          <option value="Asia/Dubai">Asia/Dubai (UTC+4)</option>
+          <option value="Pacific/Auckland">Pacific/Auckland (UTC+12)</option>
+        </select>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Location</label>
+        <div class="flex gap-2">
+          <input type="text" id="citySearch" class="flex-1 p-3 rounded-lg bg-[#1A1A1A] border border-gray-700 text-white focus:border-brand-red focus:outline-none" placeholder="Type city name...">
+          <button type="button" onclick="useIPLocation()" class="px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition text-sm">Use IP</button>
+        </div>
+        <div id="cityResults" class="mt-2 bg-[#1A1A1A] border border-gray-700 rounded-lg hidden max-h-40 overflow-y-auto"></div>
+        <p id="locationDisplay" class="text-green-400 text-sm mt-2 hidden"></p>
+        <input type="hidden" id="lat">
+        <input type="hidden" id="lon">
+      </div>
+      <div class="flex gap-3">
+        <button type="button" onclick="prevStep(2)" class="flex-1 bg-gray-700 text-white py-3 rounded-lg font-semibold hover:bg-gray-600 transition">Back</button>
+        <button type="button" onclick="nextStep(2)" class="flex-1 bg-brand-red text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition">Continue</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Bus Station -->
+    <div class="step" data-step="3">
+      <h2 class="text-xl font-semibold mb-4">Bus Station</h2>
+      <p class="text-gray-400 mb-4">Search for your transit stop to show live departures.</p>
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Search Stop</label>
+        <input type="text" id="busSearch" class="w-full p-3 rounded-lg bg-[#1A1A1A] border border-gray-700 text-white focus:border-brand-red focus:outline-none" placeholder="Type stop name or street...">
+        <div id="busResults" class="mt-2 bg-[#1A1A1A] border border-gray-700 rounded-lg hidden max-h-48 overflow-y-auto bus-dropdown"></div>
+      </div>
+      <div id="busPreview" class="hidden mb-4 p-4 bg-[#1A1A1A] rounded-lg border border-gray-700">
+        <h3 class="font-semibold text-brand-red" id="busPreviewTitle">Next buses</h3>
+        <div id="busPreviewList" class="mt-2 text-sm"></div>
+      </div>
+      <input type="hidden" id="stopId">
+      <input type="hidden" id="stopName">
+      <div class="flex gap-3">
+        <button type="button" onclick="prevStep(3)" class="flex-1 bg-gray-700 text-white py-3 rounded-lg font-semibold hover:bg-gray-600 transition">Back</button>
+        <button type="button" onclick="nextStep(3)" class="flex-1 bg-brand-red text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition">Confirm</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Google Home -->
+    <div class="step" data-step="4">
+      <h2 class="text-xl font-semibold mb-4">Google Home Device</h2>
+      <p class="text-gray-400 mb-4">Find Cast-enabled devices on your network.</p>
+      <button type="button" onclick="scanCast()" class="w-full bg-gray-700 text-white py-3 rounded-lg font-semibold hover:bg-gray-600 transition mb-4" id="scanCastBtn">
+        <span id="scanCastText">Scan for Cast devices</span>
+        <span id="scanCastSpinner" class="hidden"><span class="spinner ml-2"></span></span>
+      </button>
+      <div id="castResults" class="hidden mb-4"></div>
+      <div id="castWarning" class="hidden p-4 bg-yellow-900/50 text-yellow-300 rounded-lg text-sm mb-4">
+        Make sure your Pi and Google Home are on the same Wi-Fi network.
+        <button type="button" onclick="scanCast()" class="underline ml-2">Retry</button>
+      </div>
+      <div class="flex gap-3">
+        <button type="button" onclick="prevStep(4)" class="flex-1 bg-gray-700 text-white py-3 rounded-lg font-semibold hover:bg-gray-600 transition">Back</button>
+        <button type="button" onclick="nextStep(4)" class="flex-1 bg-brand-red text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition">Confirm</button>
+      </div>
+    </div>
+
+    <!-- Step 5: Preview & Finish -->
+    <div class="step" data-step="5">
+      <h2 class="text-xl font-semibold mb-4">Display Preview</h2>
+      <p class="text-gray-400 mb-4">Review your dashboard layout before finishing setup.</p>
+      <div class="bg-[#1A1A1A] rounded-lg p-4 mb-4 flex justify-center" id="previewContainer">
+        <div class="text-gray-500 text-center py-8">
+          <p>Preview will appear here</p>
+          <button type="button" onclick="renderPreview()" class="mt-3 bg-brand-red text-white px-6 py-2 rounded-lg hover:bg-red-700 transition">Render Preview</button>
+        </div>
+      </div>
+      <button type="button" onclick="finishSetup()" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition">
+        Looks good — finish setup
+      </button>
+      <button type="button" onclick="prevStep(5)" class="w-full mt-2 bg-gray-700 text-white py-3 rounded-lg font-semibold hover:bg-gray-600 transition">Back</button>
+    </div>
+  </form>
+</div>
+
+<script>
+let currentStep = 1;
+const totalSteps = 5;
+
+function renderDots() {
+  const container = document.getElementById('stepDots');
+  container.innerHTML = '';
+  for (let i = 1; i <= totalSteps; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'step-dot' + (i === currentStep ? ' active' : '') + (i < currentStep ? ' done' : '');
+    container.appendChild(dot);
+  }
+}
+
+function showStep(n) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.querySelector(`.step[data-step="${n}"]`).classList.add('active');
+  currentStep = n;
+  renderDots();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function prevStep(n) {
+  showStep(n - 1);
+}
+
+renderDots();
+
+// Step 1: Password
+const passwordInput = document.getElementById('password');
+const confirmInput = document.getElementById('confirmPassword');
+passwordInput.addEventListener('input', updateStrength);
+confirmInput.addEventListener('input', () => document.getElementById('passwordError').classList.add('hidden'));
+
+function updateStrength() {
+  const val = passwordInput.value;
+  const bar = document.getElementById('strengthBar');
+  const text = document.getElementById('strengthText');
+  let score = 0;
+  if (val.length >= 8) score++;
+  if (val.length >= 12) score++;
+  if (/[a-z]/.test(val) && /[A-Z]/.test(val)) score++;
+  if (/\d/.test(val)) score++;
+  if (/[^a-zA-Z0-9]/.test(val)) score++;
+  const pct = Math.min(score * 20, 100);
+  bar.style.width = pct + '%';
+  const colors = ['#DC2626', '#DC2626', '#F59E0B', '#22C55E', '#22C55E', '#22C55E'];
+  bar.style.background = colors[score] || '#22C55E';
+  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+  text.textContent = labels[score] || '';
+}
+
+function validatePassword() {
+  const err = document.getElementById('passwordError');
+  err.classList.add('hidden');
+  if (passwordInput.value.length < 8) {
+    err.textContent = 'Password must be at least 8 characters';
+    err.classList.remove('hidden');
+    return false;
+  }
+  if (passwordInput.value !== confirmInput.value) {
+    err.textContent = 'Passwords do not match';
+    err.classList.remove('hidden');
+    return false;
+  }
+  return true;
+}
+
+// Step 2: Location
+let cityTimer;
+document.getElementById('citySearch').addEventListener('input', function() {
+  clearTimeout(cityTimer);
+  const q = this.value.trim();
+  if (q.length < 2) { document.getElementById('cityResults').classList.add('hidden'); return; }
+  cityTimer = setTimeout(() => searchCity(q), 400);
+});
+
+async function searchCity(q) {
+  const res = await fetch('/api/geocode/search?q=' + encodeURIComponent(q));
+  const data = await res.json();
+  const container = document.getElementById('cityResults');
+  container.innerHTML = '';
+  if (!data.results || !data.results.length) { container.classList.add('hidden'); return; }
+  data.results.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'p-3 hover:bg-gray-800 cursor-pointer border-b border-gray-700 text-sm';
+    div.textContent = r.display_name;
+    div.onclick = () => selectCity(r);
+    container.appendChild(div);
+  });
+  container.classList.remove('hidden');
+}
+
+function selectCity(r) {
+  document.getElementById('citySearch').value = r.display_name.split(',')[0];
+  document.getElementById('lat').value = r.lat;
+  document.getElementById('lon').value = r.lon;
+  document.getElementById('locationDisplay').textContent = 'Location: ' + r.display_name;
+  document.getElementById('locationDisplay').classList.remove('hidden');
+  document.getElementById('cityResults').classList.add('hidden');
+}
+
+async function useIPLocation() {
+  try {
+    const res = await fetch('http://ip-api.com/json');
+    const data = await res.json();
+    if (data.status === 'success') {
+      document.getElementById('citySearch').value = data.city;
+      document.getElementById('lat').value = data.lat;
+      document.getElementById('lon').value = data.lon;
+      document.getElementById('locationDisplay').textContent = 'Location: ' + data.city + ', ' + data.country;
+      document.getElementById('locationDisplay').classList.remove('hidden');
+    }
+  } catch(e) { console.error(e); }
+}
+
+function validateDetails() {
+  return true; // all fields optional
+}
+
+// Step 3: Bus search
+let busTimer;
+document.getElementById('busSearch').addEventListener('input', function() {
+  clearTimeout(busTimer);
+  const q = this.value.trim();
+  if (q.length < 2) { document.getElementById('busResults').classList.add('hidden'); return; }
+  busTimer = setTimeout(() => searchBus(q), 300);
+});
+
+async function searchBus(q) {
+  const res = await fetch('/api/bus/search?q=' + encodeURIComponent(q));
+  const data = await res.json();
+  const container = document.getElementById('busResults');
+  container.innerHTML = '';
+  if (!data.stations || !data.stations.length) { container.classList.add('hidden'); return; }
+  data.stations.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'p-3 hover:bg-gray-800 cursor-pointer border-b border-gray-700';
+    div.innerHTML = '<span class="font-medium">' + s.name + '</span><span class="text-gray-500 text-sm ml-2">' + s.stop_id + '</span>';
+    div.addEventListener('click', function() { selectBus(s); });
+    container.appendChild(div);
+  });
+  container.classList.remove('hidden');
+}
+
+function selectBus(s) {
+  document.getElementById('busSearch').value = s.name;
+  document.getElementById('stopId').value = s.stop_id;
+  document.getElementById('stopName').value = s.name;
+  document.getElementById('busResults').classList.add('hidden');
+  document.getElementById('busSearch').disabled = true;
+  document.getElementById('busSearch').classList.add('opacity-50');
+  document.querySelector('#setupForm .step[data-step="3"] .bg-brand-red').textContent = 'Continue';
+  showBusPreview(s.stop_id, s.name);
+}
+
+async function showBusPreview(stopId, stopName) {
+  document.getElementById('busPreviewTitle').textContent = 'Next buses from ' + stopName;
+  document.getElementById('busPreview').classList.remove('hidden');
+  document.getElementById('busPreviewList').innerHTML = '<div class="spinner mx-auto"></div>';
+  const res = await fetch('/api/bus/preview?stop_id=' + stopId);
+  const data = await res.json();
+  const list = document.getElementById('busPreviewList');
+  list.innerHTML = '';
+  if (!data.arrivals || !data.arrivals.length) {
+    list.innerHTML = '<p class="text-gray-500">No live data available</p>';
+    return;
+  }
+  data.arrivals.slice(0, 3).forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'flex justify-between py-1';
+    const time = a.arrival_time || '';
+    const min = a.minutes;
+    const suffix = min === 0 ? 'now' : min + ' min';
+    div.innerHTML = '<span><span class="text-brand-red font-bold">' + a.line + '</span> ' + a.destination + '</span><span>' + time + ' (' + suffix + ')</span>';
+    list.appendChild(div);
+  });
+}
+
+function saveBus() {
+  const sid = document.getElementById('stopId').value;
+  const sname = document.getElementById('stopName').value;
+  if (sid && sname) {
+    fetch('/api/setup/bus', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({stop_id: sid, stop_name: sname})
+    });
+  }
+}
+
+// Step 4: Cast scan
+async function scanCast() {
+  document.getElementById('scanCastText').classList.add('hidden');
+  document.getElementById('scanCastSpinner').classList.remove('hidden');
+  document.getElementById('castWarning').classList.add('hidden');
+  const res = await fetch('/api/cast/scan');
+  const data = await res.json();
+  document.getElementById('scanCastText').classList.remove('hidden');
+  document.getElementById('scanCastSpinner').classList.add('hidden');
+  const container = document.getElementById('castResults');
+  container.classList.remove('hidden');
+  container.innerHTML = '';
+  if (!data.devices || !data.devices.length) {
+    document.getElementById('castWarning').classList.remove('hidden');
+    return;
+  }
+  data.devices.forEach(d => {
+    const label = document.createElement('label');
+    label.className = 'flex items-center gap-3 p-3 hover:bg-gray-800 rounded-lg cursor-pointer';
+    label.innerHTML = '<input type="radio" name="castDevice" value="' + d.name + '" class="accent-brand-red"> <span>' + d.name + '</span>';
+    label.querySelector('input').addEventListener('change', function() {
+      document.querySelector('#setupForm .step[data-step="4"] .bg-brand-red').textContent = 'Continue';
+    });
+    container.appendChild(label);
+  });
+}
+
+function saveCast() {
+  const selected = document.querySelector('input[name="castDevice"]:checked');
+  if (selected) {
+    fetch('/api/setup/google-home', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({device_name: selected.value})
+    });
+  }
+}
+
+function nextStep(n) {
+  if (n === 1 && !validatePassword()) return;
+  if (n === 2 && !validateDetails()) return;
+  if (n === 3) saveBus();
+  if (n === 4) saveCast();
+  showStep(n + 1);
+}
+
+// Step 5: Preview & finish
+async function renderPreview() {
+  const container = document.getElementById('previewContainer');
+  container.innerHTML = '<div class="spinner mx-auto my-8"></div>';
+  const config = await (await fetch('/api/config')).json();
+  const res = await fetch('/api/mock-render', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(config)
+  });
+  const data = await res.json();
+  if (data.png_base64) {
+    container.innerHTML = '<img src="data:image/png;base64,' + data.png_base64 + '" class="max-w-full rounded-lg">';
+  } else {
+    container.innerHTML = '<p class="text-red-500">Preview unavailable</p>';
+  }
+}
+
+async function finishSetup() {
+  if (passwordInput.value) {
+    await fetch('/api/setup/password', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({password: passwordInput.value, confirm_password: confirmInput.value})
+    });
+  }
+  await fetch('/api/setup/details', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      name: document.getElementById('name').value,
+      timezone: document.getElementById('timezone').value,
+      location: {
+        lat: parseFloat(document.getElementById('lat').value) || 45.7489,
+        lon: parseFloat(document.getElementById('lon').value) || 21.2087,
+        city: document.getElementById('citySearch').value || 'Timisoara',
+      }
+    })
+  });
+  const r = await fetch('/api/setup/complete', {method: 'POST'});
+  if (r.ok) window.location.href = '/settings';
+}
+</script>
+</body>
+</html>

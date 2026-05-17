@@ -1,0 +1,14 @@
+[Unit]
+Description=Dashboard Inky pHAT Display Service
+After=network.target
+
+[Service]
+Type=simple
+User=vladirocox
+WorkingDirectory=/home/vladirocox/dashboard
+ExecStart=/home/vladirocox/dashboard/venv/bin/python /home/vladirocox/dashboard/display_loop.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
