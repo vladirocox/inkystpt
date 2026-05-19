@@ -1,5 +1,7 @@
 # Inky pHAT Dashboard
 
+<img width="2160" height="2880" alt="image" src="https://github.com/user-attachments/assets/144f8cd2-58f3-4a19-b795-d15cc7034a4c" />
+
 E-ink dashboard for Raspberry Pi Zero 2W with an Inky pHAT (red, 212×104).
 Shows weather, live bus departures (STPT Timișoara), current time, and now-playing info from any Chromecast device.
 
